@@ -141,3 +141,7 @@ Each loan shows its recent automation activity in the app ("Reminder sent, 2 day
 ## Verification log
 
 Checked end to end on 19 November 2026 against a live Clerk, Convex and n8n stack: request, approve and return flows, the overdue reminder run, a replayed webhook accepted once and ignored the second time, a stale signature rejected with 401, and an unreachable n8n surfaced as a failed notification row rather than a silent drop.
+
+## Timezone
+
+The board runs on one documented calendar, `LENDLOOP_TIMEZONE`, default `Europe/London`, and the browser reads the same value from `NEXT_PUBLIC_LENDLOOP_TIMEZONE`. Dates here are plain calendar days, not instants: a loan due on the 19th is due on the 19th wherever you open it. Computing them from UTC instead would make a tool go overdue mid-afternoon on the day it is still due, for anyone west of London.

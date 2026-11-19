@@ -45,7 +45,11 @@ export const notify = internalAction({
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const res = await fetch(url, { method: "POST", headers, body });
-        if (res.ok) return;
+        if (res.ok) {
+          // Accepted, not yet delivered. Check back for the ack.
+          await ctx.scheduler.runAfter(ACK_GRACE_MS, internal.automation.confirmDelivery, { loanId, eventId });
+          return;
+        }
         lastError = `n8n answered ${res.status}`;
       } catch (e) {
         lastError = (e as Error).message;
@@ -53,5 +57,25 @@ export const notify = internalAction({
       if (attempt < 3) await sleep(500 * 2 ** attempt);
     }
     await ctx.runMutation(internal.automationData.recordFailure, { loanId, externalId: `${eventId}:failed`, message: `Notification not delivered: ${lastError}` });
+  },
+});
+
+// How long n8n gets to acknowledge before we call the notification lost.
+const ACK_GRACE_MS = 5 * 60 * 1000;
+
+// The webhook answers 200 as soon as it has checked the signature, BEFORE it
+// sends anything, so a 200 is not evidence of delivery. The ack written back
+// from the end of the workflow is. This runs once after the grace period: if
+// no ack landed, the loan gets a failure row, so a send that died after the
+// 200 is visible in the app instead of disappearing.
+export const confirmDelivery = internalAction({
+  args: { loanId: v.id("loans"), eventId: v.string() },
+  handler: async (ctx, { loanId, eventId }) => {
+    if (await ctx.runQuery(internal.automationData.ackLanded, { eventId })) return;
+    await ctx.runMutation(internal.automationData.recordFailure, {
+      loanId,
+      externalId: `${eventId}:unconfirmed`,
+      message: "Notification accepted by the automation but never confirmed as sent.",
+    });
   },
 });

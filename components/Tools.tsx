@@ -15,7 +15,11 @@ export function errorText(e: unknown): string {
   return "Something went wrong, try again.";
 }
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+// Must match convex/lib.ts: the board has one calendar, so the earliest day
+// the picker offers is the same day the server calls today.
+const ZONE = process.env.NEXT_PUBLIC_LENDLOOP_TIMEZONE ?? "Europe/London";
+const todayIso = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 // Every tool on the board, filterable, with a borrow form per row.
 export function AllTools({ isAdmin }: { isAdmin: boolean }) {

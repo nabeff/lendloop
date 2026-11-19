@@ -87,6 +87,17 @@ export const record = internalMutation({
   },
 });
 
+// Did n8n ever acknowledge this event? The ack is the only evidence the
+// notification actually went out: the HTTP 200 is returned before n8n sends
+// anything, so it proves the signature was accepted and nothing more.
+export const ackLanded = internalQuery({
+  args: { eventId: v.string() },
+  handler: async (ctx, { eventId }) => {
+    const row = await ctx.db.query("activity").withIndex("by_externalId", (q) => q.eq("externalId", eventId)).unique();
+    return !!row;
+  },
+});
+
 export const recordFailure = internalMutation({
   args: { loanId: v.id("loans"), externalId: v.string(), message: v.string() },
   handler: async (ctx, { loanId, externalId, message }) => {

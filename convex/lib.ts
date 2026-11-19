@@ -45,7 +45,15 @@ export function assertOwnerOrAdmin(user: Doc<"users">, ownerId: Id<"users">): vo
   if (user._id !== ownerId && user.role !== "admin") throw new ConvexError("Not yours to change.");
 }
 
-export const today = (): string => new Date().toISOString().slice(0, 10);
+// The board runs on ONE documented calendar, set by LENDLOOP_TIMEZONE and
+// defaulting to Europe/London. Dates here are plain calendar days, not
+// instants: a loan due "the 19th" is due on the 19th wherever you open it.
+// toISOString would silently make that UTC, so a lender in Los Angeles sees
+// a tool go overdue at four in the afternoon on the day it is still due.
+export const ZONE = process.env.LENDLOOP_TIMEZONE ?? "Europe/London";
+
+export const today = (): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 export const isIsoDay = (s: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 

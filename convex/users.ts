@@ -16,7 +16,11 @@ export const ensure = mutation({
       .unique();
     const email = (identity.email ?? "").toLowerCase();
     const admins = (process.env.ADMIN_EMAILS ?? "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
-    const role = admins.includes(email) ? "admin" : "user";
+    // The admin match requires a VERIFIED address. An unverified email is a
+    // string the user typed, so matching on it would let anyone claim an
+    // admin address and reload into the role.
+    const verified = identity.emailVerified === true;
+    const role = verified && email && admins.includes(email) ? "admin" : "user";
     const name = identity.name ?? identity.nickname ?? email.split("@")[0] ?? "Neighbour";
     if (existing) {
       if (existing.role !== role || existing.name !== name || existing.email !== email) {

@@ -13,7 +13,17 @@ services:
       - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678}
       - GENERIC_TIMEZONE=${TZ:-Europe/London}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      # The Code nodes read these three. Access is limited to the names listed.
+      # The two signing Code nodes read LENDLOOP_WEBHOOK_SECRET from the
+      # environment, which is why this is false.
+      #
+      # Be clear about what that costs: the flag is all or nothing. With it
+      # false, EVERY Code node in this instance can read EVERY variable here,
+      # N8N_ENCRYPTION_KEY included, and that key unlocks every stored
+      # credential. It is acceptable here because this instance runs one
+      # project's workflows on one machine. It would not be acceptable the
+      # moment a second person can import a workflow into it: the signing
+      # secret belongs in an n8n credential instead, and this goes back to
+      # true. Tracked rather than hidden.
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - NODE_FUNCTION_ALLOW_BUILTIN=crypto
       - LENDLOOP_WEBHOOK_SECRET=${LENDLOOP_WEBHOOK_SECRET}
