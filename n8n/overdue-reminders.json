@@ -98,10 +98,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "content-type",
-              "value": "application/json"
-            },
-            {
               "name": "x-lendloop-timestamp",
               "value": "={{ $json.ts }}"
             },
@@ -112,11 +108,12 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "string",
         "body": "={{ $json.body }}",
         "options": {
           "timeout": 15000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json"
       },
       "id": "cc7f36d6-c5bc-4db9-b248-4cf128bdca1a",
       "name": "Record reminder in Convex",

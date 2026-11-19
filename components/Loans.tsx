@@ -8,6 +8,7 @@ import { Badge, STATUS_TONE, relative } from "./Shell";
 import { errorText } from "./Tools";
 
 type Loan = NonNullable<ReturnType<typeof useQuery<typeof api.loans.incoming>>>[number];
+type Loans = Loan[] | null | undefined;
 
 export function MyRequests() {
   const loans = useQuery(api.loans.myRequests);
@@ -24,8 +25,8 @@ export function AllLoans() {
   return <LoanList loans={loans} empty="No loans on the board." side="admin" />;
 }
 
-function LoanList({ loans, empty, side }: { loans: Loan[] | undefined; empty: string; side: "borrower" | "lender" | "admin" }) {
-  if (loans === undefined) return <p className="text-sm text-muted">Loading</p>;
+function LoanList({ loans, empty, side }: { loans: Loans; empty: string; side: "borrower" | "lender" | "admin" }) {
+  if (!loans) return <p className="text-sm text-muted">Loading</p>;
   if (loans.length === 0) return <div className="card px-6 py-10 text-center text-sm text-muted">{empty}</div>;
   return (
     <ul className="grid gap-3">

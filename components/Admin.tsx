@@ -12,7 +12,7 @@ export function Admin() {
     <div className="grid gap-8">
       <section>
         <h2 className="mb-3 text-base font-semibold">Neighbours</h2>
-        {users === undefined ? (
+        {!users ? (
           <p className="text-sm text-muted">Loading</p>
         ) : (
           <ul className="card divide-y divide-line">

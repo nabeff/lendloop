@@ -57,7 +57,9 @@ Open http://localhost:5678, create the owner account, then import the three file
 2. `loan-event-notification.json`, activate it. Its webhook path is `/webhook/lendloop-loan-event`, matching `N8N_LOAN_WEBHOOK_URL`.
 3. `overdue-reminders.json`, activate it. It runs every day at 09:00 in the container timezone.
 
-When Convex runs in the cloud and n8n runs on your laptop, Convex cannot reach `localhost`. Expose n8n with a tunnel (for example `npx localtunnel --port 5678`) and point `N8N_LOAN_WEBHOOK_URL` and `N8N_PUBLIC_URL` at it. n8n Cloud works too: import the same files, set the three values as environment variables in the workflow settings or replace `$env.X` with credentials.
+No Docker? n8n also runs straight from npm with Node 24: `npx -y -p node@24 -p n8n n8n start` with the same variables exported in the shell (`set -a; . ./.env; set +a; export N8N_BLOCK_ENV_ACCESS_IN_NODE=false NODE_FUNCTION_ALLOW_BUILTIN=crypto`).
+
+When Convex runs in the cloud and n8n runs on your laptop, Convex cannot reach `localhost`. Expose n8n with a tunnel (for example `ngrok http 5678`) and point `N8N_LOAN_WEBHOOK_URL` and `N8N_PUBLIC_URL` at it. n8n Cloud works too: import the same files, set the three values as environment variables in the workflow settings or replace `$env.X` with credentials.
 
 ## Environment variables
 
@@ -133,5 +135,5 @@ Each loan shows its recent automation activity in the app ("Reminder sent, 2 day
 - Rate limit the public query and the request mutation per user, and add Convex `rateLimiter` on the HTTP endpoints.
 - Rotate the shared secret with a key id in the signature header so both sides can roll keys without downtime.
 - Add an audit log table written from every mutation (who, what, when) and an admin export, plus Sentry on the Next.js app and Convex function logs shipped to a log drain.
-- Tests: Convex function tests with `convex-test` for every access rule, and a Playwright flow for list, request, approve, return.
+- Tests: Convex function tests with `convex-test` for every access rule, and a Playwright flow for list, request, approve, return. The flow was exercised by hand against a dev deployment: request, approve, return, the overdue reminder run, a replayed write-back (stored once), a stale signature (rejected) and an unreachable n8n (retried three times, then surfaced on the loan).
 - A Clerk webhook to delete a user's rows when the account is deleted, and a short retention policy on `activity`.

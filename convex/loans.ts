@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { activeLoan, isIsoDay, publicUser, requireLoan, requireTool, requireUser, today } from "./lib";
+import { activeLoan, currentUser, isIsoDay, publicUser, requireLoan, requireTool, requireUser, today } from "./lib";
 
 // Every status change ends here: write, then hand the event to n8n through
 // the scheduler so the mutation itself never does network work.
@@ -94,7 +94,8 @@ export const markReturned = mutation({
 export const myRequests = query({
   args: {},
   handler: async (ctx) => {
-    const me = await requireUser(ctx);
+    const me = await currentUser(ctx);
+    if (!me) return null;
     const loans = await ctx.db.query("loans").withIndex("by_borrower", (q) => q.eq("borrowerId", me._id)).order("desc").collect();
     return Promise.all(loans.map((l) => shape(ctx, l, me._id)));
   },
@@ -103,7 +104,8 @@ export const myRequests = query({
 export const incoming = query({
   args: {},
   handler: async (ctx) => {
-    const me = await requireUser(ctx);
+    const me = await currentUser(ctx);
+    if (!me) return null;
     const loans = await ctx.db.query("loans").withIndex("by_lender", (q) => q.eq("lenderId", me._id)).order("desc").collect();
     return Promise.all(loans.map((l) => shape(ctx, l, me._id)));
   },
@@ -113,8 +115,8 @@ export const incoming = query({
 export const all = query({
   args: {},
   handler: async (ctx) => {
-    const me = await requireUser(ctx);
-    if (me.role !== "admin") throw new ConvexError("Admins only.");
+    const me = await currentUser(ctx);
+    if (!me || me.role !== "admin") return null;
     const loans = await ctx.db.query("loans").order("desc").collect();
     return Promise.all(loans.map((l) => shape(ctx, l, me._id)));
   },

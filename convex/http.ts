@@ -1,7 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 
 // The two endpoints n8n talks to. Both check a secret before touching data:
 // the overdue feed takes a bearer token, the write-backs take the HMAC
@@ -67,12 +66,12 @@ http.route({
     const { loanId, reminderId, channel } = v.body as { loanId?: string; reminderId?: string; channel?: string };
     if (!loanId || !reminderId) return json(400, { error: "loanId and reminderId are required" });
     const result = await ctx.runMutation(internal.automationData.record, {
-      loanId: loanId as Id<"loans">,
+      loanId,
       kind: "reminder",
       externalId: reminderId,
       message: `Reminder sent${channel ? ` by ${channel}` : ""}`,
     });
-    return json(200, result);
+    return json(result.found ? 200 : 404, result);
   }),
 });
 
@@ -87,12 +86,12 @@ http.route({
     const { loanId, eventId, channel, status } = v.body as { loanId?: string; eventId?: string; channel?: string; status?: string };
     if (!loanId || !eventId) return json(400, { error: "loanId and eventId are required" });
     const result = await ctx.runMutation(internal.automationData.record, {
-      loanId: loanId as Id<"loans">,
+      loanId,
       kind: "notification",
       externalId: eventId,
       message: `${status ?? "update"} notification sent${channel ? ` by ${channel}` : ""}`,
     });
-    return json(200, result);
+    return json(result.found ? 200 : 404, result);
   }),
 });
 

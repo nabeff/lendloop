@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { CATEGORIES, CONDITIONS } from "./schema";
-import { activeLoan, assertOwnerOrAdmin, publicUser, requireTool, requireUser } from "./lib";
+import { activeLoan, assertOwnerOrAdmin, currentUser, publicUser, requireTool, requireUser } from "./lib";
 
 const clean = (s: string, max: number) => s.trim().slice(0, max);
 
@@ -33,7 +33,8 @@ export const listPublic = query({
 export const listAll = query({
   args: { category: v.optional(v.string()) },
   handler: async (ctx, { category }) => {
-    const me = await requireUser(ctx);
+    const me = await currentUser(ctx);
+    if (!me) return null;
     const tools = category
       ? await ctx.db.query("tools").withIndex("by_category", (q) => q.eq("category", category)).collect()
       : await ctx.db.query("tools").collect();
@@ -60,7 +61,8 @@ export const listAll = query({
 export const mine = query({
   args: {},
   handler: async (ctx) => {
-    const me = await requireUser(ctx);
+    const me = await currentUser(ctx);
+    if (!me) return null;
     const tools = await ctx.db.query("tools").withIndex("by_owner", (q) => q.eq("ownerId", me._id)).collect();
     const out = [];
     for (const t of tools) {

@@ -130,10 +130,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "content-type",
-              "value": "application/json"
-            },
-            {
               "name": "x-lendloop-timestamp",
               "value": "={{ $json.ts }}"
             },
@@ -144,11 +140,12 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "string",
         "body": "={{ $json.body }}",
         "options": {
           "timeout": 15000
-        }
+        },
+        "contentType": "raw",
+        "rawContentType": "application/json"
       },
       "id": "a746f71f-34ac-4448-bc4d-f5ef7573e755",
       "name": "Acknowledge to Convex",

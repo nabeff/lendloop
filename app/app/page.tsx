@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Shell } from "@/components/Shell";
 import { UserSync } from "@/components/UserSync";
@@ -19,10 +19,11 @@ const TABS = [
 type Tab = (typeof TABS)[number]["key"] | "admin";
 
 export default function Board() {
-  const me = useQuery(api.users.me);
+  const { isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
   const [tab, setTab] = useState<Tab>("all");
   const isAdmin = me?.role === "admin";
-  const incoming = useQuery(api.loans.incoming);
+  const incoming = useQuery(api.loans.incoming, isAuthenticated ? {} : "skip");
   const waiting = incoming?.filter((l) => l.status === "requested").length ?? 0;
 
   return (
@@ -37,7 +38,7 @@ export default function Board() {
         {isAdmin && <button data-on={tab === "admin"} onClick={() => setTab("admin")} className="tab">Admin</button>}
       </div>
 
-      {me === undefined ? (
+      {!me ? (
         <p className="text-sm text-muted">Loading</p>
       ) : (
         <>

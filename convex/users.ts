@@ -1,6 +1,6 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { currentUser, requireAdmin } from "./lib";
+import { currentUser } from "./lib";
 
 // Called once after sign in. Creates the row on first visit. Admins are the
 // addresses listed in ADMIN_EMAILS on the deployment, so the role can never
@@ -41,7 +41,8 @@ export const me = query({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    const me = await currentUser(ctx);
+    if (!me || me.role !== "admin") return null;
     const users = await ctx.db.query("users").collect();
     return users.map((u) => ({ id: u._id, name: u.name, email: u.email, role: u.role, trustedLender: u.trustedLender }));
   },
@@ -50,7 +51,8 @@ export const list = query({
 export const setTrustedLender = mutation({
   args: { userId: v.id("users"), trusted: v.boolean() },
   handler: async (ctx, { userId, trusted }) => {
-    await requireAdmin(ctx);
+    const me = await currentUser(ctx);
+    if (!me || me.role !== "admin") throw new ConvexError("Admins only.");
     await ctx.db.patch(userId, { trustedLender: trusted });
   },
 });

@@ -39,7 +39,7 @@ export function AllTools({ isAdmin }: { isAdmin: boolean }) {
         <span className="ml-auto text-sm text-muted">{tools ? `${shown.length} tools` : ""}</span>
       </div>
 
-      {tools === undefined ? (
+      {!tools ? (
         <p className="text-sm text-muted">Loading</p>
       ) : shown.length === 0 ? (
         <div className="card px-6 py-10 text-center text-sm text-muted">No tools here yet.</div>
@@ -136,7 +136,7 @@ export function MyListings() {
         />
       )}
 
-      {tools === undefined ? (
+      {!tools ? (
         <p className="text-sm text-muted">Loading</p>
       ) : tools.length === 0 && editing !== "new" ? (
         <div className="card px-6 py-10 text-center text-sm text-muted">You have not listed anything yet.</div>

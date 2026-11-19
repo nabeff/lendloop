@@ -66,20 +66,23 @@ export const overdue = internalQuery({
 
 // Idempotent write-back. The externalId is the dedupe key: the same reminder
 // or notification acknowledged twice is stored once.
+// The loan id arrives from n8n as a plain string, so it is normalised here
+// and an unknown id is a clean "not found", never a thrown validation error.
 export const record = internalMutation({
   args: {
-    loanId: v.id("loans"),
+    loanId: v.string(),
     kind: v.union(v.literal("notification"), v.literal("reminder")),
     externalId: v.string(),
     message: v.string(),
   },
   handler: async (ctx, { loanId, kind, externalId, message }) => {
     const existing = await ctx.db.query("activity").withIndex("by_externalId", (q) => q.eq("externalId", externalId)).unique();
-    if (existing) return { duplicate: true as const, id: existing._id };
-    const loan = await ctx.db.get(loanId);
-    if (!loan) return { duplicate: false as const, id: null };
-    const id = await ctx.db.insert("activity", { loanId, kind, externalId, message: message.slice(0, 200) });
-    return { duplicate: false as const, id };
+    if (existing) return { duplicate: true as const, id: existing._id, found: true as const };
+    const id = ctx.db.normalizeId("loans", loanId);
+    const loan = id ? await ctx.db.get(id) : null;
+    if (!id || !loan) return { duplicate: false as const, id: null, found: false as const };
+    const activityId = await ctx.db.insert("activity", { loanId: id, kind, externalId, message: message.slice(0, 200) });
+    return { duplicate: false as const, id: activityId, found: true as const };
   },
 });
 
