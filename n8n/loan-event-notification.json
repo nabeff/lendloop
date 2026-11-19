@@ -1,0 +1,245 @@
+{
+  "name": "LendLoop, loan event notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lendloop-loan-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8235ca85-1ca9-403f-8746-39ed9edcf6c5",
+      "name": "Loan event webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "lendloop-loan-event"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify the Convex signature before trusting anything in the body.\n// Replays older than five minutes are rejected.\nconst crypto = require('crypto');\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nif (!secret) throw new Error('LENDLOOP_WEBHOOK_SECRET is not set');\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst ts = String(headers['x-lendloop-timestamp'] || '');\nconst given = String(headers['x-lendloop-signature'] || '').replace(/^sha256=/, '');\nconst body = JSON.stringify(item.body);\nconst age = Math.abs(Date.now() / 1000 - Number(ts));\nconst expected = crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');\nconst valid = Number.isFinite(age) && age <= 300 && given.length === expected.length\n  && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));\nreturn [{ json: { valid, event: item.body } }];"
+      },
+      "id": "8fa9185e-6d68-4d29-8863-6fddadd01616",
+      "name": "Verify signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "6f2a105a-0012-4ff2-b6ff-263e0f1df7f5",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bfe4a579-fa92-4f36-825f-b9140477675c",
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true } }}",
+        "options": {}
+      },
+      "id": "23f36d16-d993-48a9-b1df-de9e0a6c0767",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"bad signature\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "c2b26b58-4362-4bcd-8ecc-b31f3dae52aa",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// The notification itself. Swap this for an Email, Slack or Discord node;\n// the logged mock is the default so the workflow runs with no accounts.\n// Only the fields the message needs are read, nothing else is forwarded.\nconst e = $input.first().json.event;\nconst lines = {\n  requested: `${e.counterpart} asked to borrow your ${e.tool} from ${e.startDate} to ${e.endDate}.`,\n  approved: `${e.counterpart} approved your request for the ${e.tool}, ${e.startDate} to ${e.endDate}.`,\n  declined: `${e.counterpart} could not lend the ${e.tool} this time.`,\n  returned: `The ${e.tool} is marked as returned. Thanks!`,\n};\nconst message = lines[e.status] || `Update on the ${e.tool}: ${e.status}.`;\nconsole.log(`[notify] to ${e.recipient.name} <${e.recipient.email}>: ${message}`);\nreturn [{ json: { payload: { loanId: e.loanId, eventId: e.eventId, status: e.status, channel: 'log' } } }];"
+      },
+      "id": "43b476cd-ae1b-4468-8ac0-95b4d704d6d0",
+      "name": "Send notification (logged mock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sign an outgoing write-back for Convex. Secret from the container env,\n// never from this file. Signature = HMAC-SHA256(secret, `${ts}.${body}`).\nconst crypto = require('crypto');\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nif (!secret) throw new Error('LENDLOOP_WEBHOOK_SECRET is not set');\nreturn $input.all().map((item) => {\n  const body = JSON.stringify(item.json.payload);\n  const ts = String(Math.floor(Date.now() / 1000));\n  const sig = crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');\n  return { json: { body, ts, sig: `sha256=${sig}` } };\n});"
+      },
+      "id": "d3c250c3-9e14-4d85-8abf-f1b06802d4ca",
+      "name": "Sign write-back",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CONVEX_SITE_URL }}/automation/ack",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-lendloop-timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "x-lendloop-signature",
+              "value": "={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a746f71f-34ac-4448-bc4d-f5ef7573e755",
+      "name": "Acknowledge to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Loan event webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify signature": {
+      "main": [
+        [
+          {
+            "node": "Signature valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "node": "Send notification (logged mock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send notification (logged mock)": {
+      "main": [
+        [
+          {
+            "node": "Sign write-back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign write-back": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

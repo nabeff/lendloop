@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Convex writes this folder, it is not hand written.
+    "convex/_generated/**",
   ]),
 ]);
 

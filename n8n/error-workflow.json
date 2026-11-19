@@ -1,0 +1,46 @@
+{
+  "name": "LendLoop, error workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "451aa86f-df51-45a4-9eda-34ff3706c63e",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Every failed run of the LendLoop workflows lands here. Replace the log\n// with an Email or Slack node to be paged.\nconst e = $input.first().json;\nconsole.error(`[lendloop error] workflow \"${e.workflow?.name}\" execution ${e.execution?.id}: ${e.execution?.error?.message}`);\nreturn [{ json: { reported: true } }];"
+      },
+      "id": "055e479c-a1eb-4243-9ded-6f56db92965b",
+      "name": "Report failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Report failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

@@ -1,0 +1,26 @@
+# Self-hosted n8n for LendLoop. Secrets come from .env (copy .env.example),
+# never from the workflow JSON files.
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678}
+      - GENERIC_TIMEZONE=${TZ:-Europe/London}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      # The Code nodes read these three. Access is limited to the names listed.
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      - LENDLOOP_WEBHOOK_SECRET=${LENDLOOP_WEBHOOK_SECRET}
+      - N8N_READ_TOKEN=${N8N_READ_TOKEN}
+      - CONVEX_SITE_URL=${CONVEX_SITE_URL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
