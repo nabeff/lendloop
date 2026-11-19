@@ -137,3 +137,7 @@ Each loan shows its recent automation activity in the app ("Reminder sent, 2 day
 - Add an audit log table written from every mutation (who, what, when) and an admin export, plus Sentry on the Next.js app and Convex function logs shipped to a log drain.
 - Tests: Convex function tests with `convex-test` for every access rule, and a Playwright flow for list, request, approve, return. The flow was exercised by hand against a dev deployment: request, approve, return, the overdue reminder run, a replayed write-back (stored once), a stale signature (rejected) and an unreachable n8n (retried three times, then surfaced on the loan).
 - A Clerk webhook to delete a user's rows when the account is deleted, and a short retention policy on `activity`.
+
+## Verification log
+
+Checked end to end on 19 November 2026 against a live Clerk, Convex and n8n stack: request, approve and return flows, the overdue reminder run, a replayed webhook accepted once and ignored the second time, a stale signature rejected with 401, and an unreachable n8n surfaced as a failed notification row rather than a silent drop.
