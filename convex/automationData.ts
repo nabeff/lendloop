@@ -7,17 +7,18 @@ import { today } from "./lib";
 // endpoints and the notify action call. Nothing here is reachable from the
 // browser, every function is internal.
 
-// The minimum a notification needs. The recipient is whoever has to act or
-// know: the lender for a new request, the borrower for a decision.
+// The minimum a notification needs. The recipient is the party who did NOT
+// act, so a return marked by the borrower reaches the lender. With no actor we
+// fall back to the status, which is right for the one-sided transitions.
 export const loanEvent = internalQuery({
-  args: { loanId: v.id("loans"), status: loanStatus, eventId: v.string() },
-  handler: async (ctx, { loanId, status, eventId }) => {
+  args: { loanId: v.id("loans"), status: loanStatus, eventId: v.string(), actorId: v.optional(v.id("users")) },
+  handler: async (ctx, { loanId, status, eventId, actorId }) => {
     const loan = await ctx.db.get(loanId);
     if (!loan) return null;
     const tool = await ctx.db.get(loan.toolId);
-    const recipientId = status === "requested" ? loan.lenderId : loan.borrowerId;
+    const recipientId = actorId ? (actorId === loan.lenderId ? loan.borrowerId : loan.lenderId) : status === "requested" ? loan.lenderId : loan.borrowerId;
     const recipient = await ctx.db.get(recipientId);
-    const other = await ctx.db.get(status === "requested" ? loan.borrowerId : loan.lenderId);
+    const other = await ctx.db.get(recipientId === loan.lenderId ? loan.borrowerId : loan.lenderId);
     if (!recipient) return null;
     return {
       eventId,

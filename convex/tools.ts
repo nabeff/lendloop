@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { CATEGORIES, CONDITIONS } from "./schema";
 import { activeLoan, assertOwnerOrAdmin, currentUser, publicUser, requireTool, requireUser } from "./lib";
+import { setStatus } from "./loans";
 
 const clean = (s: string, max: number) => s.trim().slice(0, max);
 
@@ -101,8 +102,10 @@ export const remove = mutation({
     const tool = await requireTool(ctx, toolId);
     assertOwnerOrAdmin(me, tool.ownerId);
     const loans = await ctx.db.query("loans").withIndex("by_tool", (q) => q.eq("toolId", toolId)).collect();
+    // Through setStatus, not a bare patch, so the borrower is actually told the
+    // tool is gone instead of watching their request turn to declined in silence.
     for (const l of loans) {
-      if (l.status === "requested") await ctx.db.patch(l._id, { status: "declined", updatedAt: Date.now() });
+      if (l.status === "requested") await setStatus(ctx, l, "declined", me._id);
     }
     await ctx.db.delete(toolId);
   },

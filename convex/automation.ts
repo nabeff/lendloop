@@ -20,8 +20,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // needs: the recipient, the tool name, the dates and the status. No ids of
 // other people, no emails of the other party.
 export const notify = internalAction({
-  args: { loanId: v.id("loans"), status: loanStatus, updatedAt: v.number() },
-  handler: async (ctx, { loanId, status, updatedAt }) => {
+  args: { loanId: v.id("loans"), status: loanStatus, updatedAt: v.number(), actorId: v.optional(v.id("users")) },
+  handler: async (ctx, { loanId, status, updatedAt, actorId }) => {
     const url = process.env.N8N_LOAN_WEBHOOK_URL;
     const secret = process.env.LENDLOOP_WEBHOOK_SECRET;
     const eventId = `${loanId}:${status}:${updatedAt}`;
@@ -29,7 +29,7 @@ export const notify = internalAction({
       console.log(`[automation] n8n not configured, skipped ${eventId}`);
       return;
     }
-    const payload = await ctx.runQuery(internal.automationData.loanEvent, { loanId, status, eventId });
+    const payload = await ctx.runQuery(internal.automationData.loanEvent, { loanId, status, eventId, actorId });
     if (!payload) return;
     const body = JSON.stringify(payload);
     const timestamp = String(Math.floor(Date.now() / 1000));

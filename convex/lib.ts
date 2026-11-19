@@ -49,13 +49,15 @@ export const today = (): string => new Date().toISOString().slice(0, 10);
 
 export const isIsoDay = (s: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 
-// A tool is on loan while one approved loan exists for it.
-export async function activeLoan(ctx: Ctx, toolId: Id<"tools">): Promise<Doc<"loans"> | null> {
+// A tool is unavailable on a day only if an approved loan covers that day.
+// With no range the window is today, which is what the public board asks for.
+// Two ranges clash when each one starts on or before the other one ends.
+export async function activeLoan(ctx: Ctx, toolId: Id<"tools">, startDate: string = today(), endDate: string = startDate): Promise<Doc<"loans"> | null> {
   const loans = await ctx.db
     .query("loans")
     .withIndex("by_tool", (q) => q.eq("toolId", toolId))
     .collect();
-  return loans.find((l) => l.status === "approved") ?? null;
+  return loans.find((l) => l.status === "approved" && l.startDate <= endDate && l.endDate >= startDate) ?? null;
 }
 
 // Public view of a user: name only, never the email.

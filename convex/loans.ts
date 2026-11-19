@@ -5,11 +5,12 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { activeLoan, currentUser, isIsoDay, publicUser, requireLoan, requireTool, requireUser, today } from "./lib";
 
 // Every status change ends here: write, then hand the event to n8n through
-// the scheduler so the mutation itself never does network work.
-async function setStatus(ctx: MutationCtx, loan: Doc<"loans">, status: Doc<"loans">["status"]) {
+// the scheduler so the mutation itself never does network work. The actor is
+// whoever made the change, so the notification goes to the other party.
+export async function setStatus(ctx: MutationCtx, loan: Doc<"loans">, status: Doc<"loans">["status"], actorId?: Id<"users">) {
   const updatedAt = Date.now();
   await ctx.db.patch(loan._id, { status, updatedAt });
-  await ctx.scheduler.runAfter(0, internal.automation.notify, { loanId: loan._id, status, updatedAt });
+  await ctx.scheduler.runAfter(0, internal.automation.notify, { loanId: loan._id, status, updatedAt, actorId });
 }
 
 async function shape(ctx: QueryCtx, loan: Doc<"loans">, meId: Id<"users">) {
@@ -44,7 +45,7 @@ export const request = mutation({
     if (!isIsoDay(startDate) || !isIsoDay(endDate)) throw new ConvexError("Pick both dates.");
     if (startDate < today()) throw new ConvexError("The start date is in the past.");
     if (endDate < startDate) throw new ConvexError("The return date is before the start date.");
-    if (await activeLoan(ctx, toolId)) throw new ConvexError("That tool is out on loan right now.");
+    if (await activeLoan(ctx, toolId, startDate, endDate)) throw new ConvexError("The tool is already booked for those dates.");
     const open = await ctx.db.query("loans").withIndex("by_borrower", (q) => q.eq("borrowerId", me._id)).collect();
     if (open.some((l) => l.toolId === toolId && l.status === "requested")) throw new ConvexError("You already asked for this one.");
     const updatedAt = Date.now();
@@ -63,8 +64,12 @@ export const approve = mutation({
     const loan = await requireLoan(ctx, loanId);
     if (loan.lenderId !== me._id) throw new ConvexError("Only the owner can approve.");
     if (loan.status !== "requested") throw new ConvexError("This request was already handled.");
-    if (await activeLoan(ctx, loan.toolId)) throw new ConvexError("The tool is already out on another loan.");
-    await setStatus(ctx, loan, "approved");
+    // Dates are re-checked here, not only at request time: a request can sit
+    // unanswered past its own start date, and approving it then would create a
+    // loan that is overdue the moment it exists.
+    if (loan.startDate < today()) throw new ConvexError("That request is out of date, ask for new dates.");
+    if (await activeLoan(ctx, loan.toolId, loan.startDate, loan.endDate)) throw new ConvexError("The tool is already booked for those dates.");
+    await setStatus(ctx, loan, "approved", me._id);
   },
 });
 
@@ -75,7 +80,7 @@ export const decline = mutation({
     const loan = await requireLoan(ctx, loanId);
     if (loan.lenderId !== me._id) throw new ConvexError("Only the owner can decline.");
     if (loan.status !== "requested") throw new ConvexError("This request was already handled.");
-    await setStatus(ctx, loan, "declined");
+    await setStatus(ctx, loan, "declined", me._id);
   },
 });
 
@@ -87,7 +92,7 @@ export const markReturned = mutation({
     const loan = await requireLoan(ctx, loanId);
     if (loan.lenderId !== me._id && loan.borrowerId !== me._id) throw new ConvexError("Not your loan.");
     if (loan.status !== "approved") throw new ConvexError("Only an approved loan can be returned.");
-    await setStatus(ctx, loan, "returned");
+    await setStatus(ctx, loan, "returned", me._id);
   },
 });
 
