@@ -19,8 +19,20 @@ export const backdateLoan = internalMutation({
 export const seed = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const me = await ctx.db.query("users").first();
-    if (!me) throw new Error("Sign in once first, so there is an owner to attach demo tools to.");
+    // Prefer a real signed-in account as the owner so the board looks like
+    // yours. On a fresh deployment there is none yet, so the seed creates a
+    // demo owner rather than refusing to run and leaving the board empty.
+    let me = await ctx.db.query("users").first();
+    if (!me) {
+      const id = await ctx.db.insert("users", {
+        clerkId: "demo_owner",
+        name: "Sam Okafor",
+        email: "sam@example.com",
+        role: "user",
+        trustedLender: true,
+      });
+      me = (await ctx.db.get(id))!;
+    }
 
     const neighbours = [
       { clerkId: "demo_amara", name: "Amara Osei", email: "amara@example.com", trustedLender: true },
