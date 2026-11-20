@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Grid2x2, Inbox, Send, Shield, Wrench } from "lucide-react";
-import { Header, SkeletonList } from "@/components/Shell";
+import { Header, SkeletonList, SkeletonRows } from "@/components/Shell";
 import { api } from "@/convex/_generated/api";
 import { UserSync } from "@/components/UserSync";
 import { AllTools, MyListings } from "@/components/Tools";
@@ -42,28 +42,56 @@ export default function Board() {
         <aside className="hidden w-52 shrink-0 md:block">
           <nav className="sticky top-20 flex flex-col gap-0.5">
             {items.map(({ key, label, icon: Icon }) => (
-              <button key={key} data-on={tab === key} onClick={() => setTab(key)} className="nav-item">
+              <button
+                key={key}
+                data-on={tab === key}
+                onClick={() => setTab(key)}
+                className="nav-item"
+                aria-current={tab === key ? "page" : undefined}
+                aria-label={key === "incoming" && waiting > 0 ? `${label}, ${waiting} waiting` : undefined}
+              >
                 <Icon className="size-4 shrink-0" strokeWidth={2.25} />
                 {label}
-                {key === "incoming" && waiting > 0 && <span className="nav-count">{waiting}</span>}
+                {key === "incoming" && waiting > 0 && (
+                  <span className="nav-count" aria-hidden>
+                    {waiting}
+                  </span>
+                )}
               </button>
             ))}
-            {me && (
-              <div className="mt-4 border-t border-line pt-4">
-                <p className="px-2.5 text-xs text-muted">Signed in as</p>
-                <p className="truncate px-2.5 text-sm font-semibold">{me.name}</p>
-              </div>
-            )}
+            {/* Reserved height: the name resolves after first paint, and
+                without this the sidebar visibly grew when it arrived. */}
+            <div className="mt-4 min-h-[52px] border-t border-line pt-4">
+              <p className="px-2.5 text-xs text-muted">Signed in as</p>
+              {me ? (
+                <p className="truncate px-2.5 text-sm font-semibold" title={me.name}>
+                  {me.name}
+                </p>
+              ) : (
+                <span className="mx-2.5 mt-1 block h-4 w-24 skeleton" />
+              )}
+            </div>
           </nav>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-6 flex gap-1.5 overflow-x-auto md:hidden">
+          <div className="mb-6 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {items.map(({ key, label, icon: Icon }) => (
-              <button key={key} data-on={tab === key} onClick={() => setTab(key)} className="nav-item w-auto shrink-0">
+              <button
+                key={key}
+                data-on={tab === key}
+                onClick={() => setTab(key)}
+                className="nav-item w-auto shrink-0"
+                aria-current={tab === key ? "page" : undefined}
+                aria-label={key === "incoming" && waiting > 0 ? `${label}, ${waiting} waiting` : undefined}
+              >
                 <Icon className="size-4" strokeWidth={2.25} />
                 {label}
-                {key === "incoming" && waiting > 0 && <span className="nav-count">{waiting}</span>}
+                {key === "incoming" && waiting > 0 && (
+                  <span className="nav-count" aria-hidden>
+                    {waiting}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -71,7 +99,11 @@ export default function Board() {
           <UserSync />
 
           {!me ? (
-            <SkeletonList />
+            tab === "admin" ? (
+              <SkeletonRows rows={2} />
+            ) : (
+              <SkeletonList />
+            )
           ) : (
             <>
               {tab === "all" && <AllTools isAdmin={isAdmin} />}

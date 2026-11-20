@@ -4,16 +4,11 @@ import Link from "next/link";
 import { AvatarSlot, SignInHeaderButton } from "./SignInCta";
 import { Wrench } from "lucide-react";
 import type { ReactNode } from "react";
+import { STATUS_LABEL, STATUS_TONE, type Tone } from "@/lib/labels";
 
-/* The marketing shell: full-bleed dark ground, centered content. */
-export function Shell({ children, signedIn = false }: { children: ReactNode; signedIn?: boolean }) {
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <Header signedIn={signedIn} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-24 md:px-8">{children}</main>
-    </div>
-  );
-}
+/* Labels and formatters live in lib/labels.ts, which has no "use client", so
+   server components get the real objects rather than a client proxy. */
+export { categoryLabel, dateRange, dayLabel, initial, relative, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 
 /* The header takes the session as a PROP, decided on the server, instead of
    asking Clerk in the browser. That is what keeps the first painted frame
@@ -46,18 +41,6 @@ export function Header({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-export const CATEGORY_LABEL: Record<string, string> = {
-  "power tools": "Power tools",
-  "hand tools": "Hand tools",
-  garden: "Garden",
-  kitchen: "Kitchen",
-  camping: "Camping",
-  cleaning: "Cleaning",
-  other: "Other",
-};
-
-type Tone = "neutral" | "ok" | "warn" | "bad" | "accent";
-
 const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-raised text-muted border-line",
   ok: "bg-ok-soft text-ok border-ok-line",
@@ -81,20 +64,6 @@ export function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
-export const STATUS_TONE: Record<string, Tone> = {
-  requested: "warn",
-  approved: "ok",
-  declined: "bad",
-  returned: "neutral",
-};
-
-export const STATUS_LABEL: Record<string, string> = {
-  requested: "Awaiting reply",
-  approved: "Out on loan",
-  declined: "Declined",
-  returned: "Returned",
-};
 
 /* Every tab opens with one of these, so the pages share a rhythm. */
 export function SectionHead({
@@ -144,7 +113,7 @@ export function Empty({ icon, title, children }: { icon?: ReactNode; title: stri
 export function SkeletonList({ rows = 4 }: { rows?: number }) {
   const widths = ["w-32", "w-44", "w-28", "w-40", "w-36", "w-24"];
   return (
-    <ul className="grid gap-2.5 sm:grid-cols-2" aria-busy="true" aria-live="polite">
+    <ul className="grid gap-3 sm:grid-cols-2" aria-busy="true" aria-live="polite">
       <li className="sr-only">Loading</li>
       {Array.from({ length: rows }).map((_, i) => (
         <li key={i} className="panel flex flex-col gap-3.5 p-4" aria-hidden>
@@ -164,7 +133,7 @@ export function SkeletonList({ rows = 4 }: { rows?: number }) {
 /* The same idea for the loan list, which is one column of wider rows. */
 export function SkeletonRows({ rows = 3 }: { rows?: number }) {
   return (
-    <ul className="grid gap-2.5" aria-busy="true" aria-live="polite">
+    <ul className="grid gap-3" aria-busy="true" aria-live="polite">
       <li className="sr-only">Loading</li>
       {Array.from({ length: rows }).map((_, i) => (
         <li key={i} className="panel flex flex-col gap-3 p-4" aria-hidden>
@@ -179,27 +148,5 @@ export function SkeletonRows({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function relative(ms: number): string {
-  const days = Math.floor((Date.now() - ms) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days} days ago`;
-  const weeks = Math.floor(days / 7);
-  return weeks === 1 ? "last week" : `${weeks} weeks ago`;
-}
 
-/* Dates in the UI are the plain calendar days the board runs on, so they are
-   formatted from the string and never parsed into a local instant. */
-export function dayLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-}
 
-export function dateRange(start: string, end: string): string {
-  return start === end ? dayLabel(start) : `${dayLabel(start)} to ${dayLabel(end)}`;
-}

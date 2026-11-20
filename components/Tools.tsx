@@ -6,10 +6,9 @@ import { ConvexError } from "convex/values";
 import { CalendarDays, PackageOpen, Plus, Star, Wrench } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Badge, CATEGORY_LABEL, Empty, SectionHead, SkeletonList, dayLabel } from "./Shell";
-
-const CATEGORIES = Object.keys(CATEGORY_LABEL);
-const CONDITIONS = ["new", "good", "worn", "needs care"];
+import { Badge, Empty, SectionHead, SkeletonList } from "./Shell";
+import { ConfirmButton } from "./ConfirmButton";
+import { CATEGORIES, CONDITIONS, categoryLabel, dayLabel } from "@/lib/labels";
 
 export function errorText(e: unknown): string {
   if (e instanceof ConvexError) return String(e.data);
@@ -51,7 +50,7 @@ export function AllTools({ isAdmin }: { isAdmin: boolean }) {
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {CATEGORY_LABEL[c]}
+              {categoryLabel(c)}
             </option>
           ))}
         </select>
@@ -72,8 +71,12 @@ export function AllTools({ isAdmin }: { isAdmin: boolean }) {
         )}
       </div>
 
-      {!tools ? (
+      {tools === undefined ? (
         <SkeletonList />
+      ) : tools === null ? (
+        <Empty icon={<PackageOpen className="size-5" />} title="Could not load the board">
+          Your account is still being set up, or the session expired. Reload the page and try again.
+        </Empty>
       ) : shown.length === 0 ? (
         <Empty icon={<PackageOpen className="size-5" />} title={filtered ? "Nothing matches that" : "The board is empty"}>
           {filtered
@@ -86,9 +89,11 @@ export function AllTools({ isAdmin }: { isAdmin: boolean }) {
             <li key={t.id} className="row flex flex-col gap-3 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate font-semibold">{t.name}</h3>
+                  <h3 className="truncate font-semibold" title={t.name}>
+                    {t.name}
+                  </h3>
                   <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
-                    <span>{CATEGORY_LABEL[t.category] ?? t.category}</span>
+                    <span>{categoryLabel(t.category)}</span>
                     <span aria-hidden>·</span>
                     <span>{t.condition}</span>
                     {t.owner && (
@@ -117,15 +122,12 @@ export function AllTools({ isAdmin }: { isAdmin: boolean }) {
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
                   {!t.mine && t.available && <BorrowForm toolId={t.id} />}
                   {isAdmin && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Remove "${t.name}" from the board? Open requests are declined.`))
-                          void remove({ toolId: t.id });
-                      }}
-                      className="btn btn-quiet btn-sm ml-auto text-bad"
-                    >
-                      Remove
-                    </button>
+                    <ConfirmButton
+                      label="Remove"
+                      confirmLabel="Remove it"
+                      title="Open requests are declined."
+                      onConfirm={() => remove({ toolId: t.id })}
+                    />
                   )}
                 </div>
               )}
@@ -146,6 +148,8 @@ function BorrowForm({ toolId }: { toolId: Id<"tools"> }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
+  // The badge is a receipt for THIS click, not a claim about the tool. The
+  // row's own availability comes from the query and updates on its own.
   if (done) return <Badge tone="accent">Request sent</Badge>;
 
   if (!open)
@@ -200,7 +204,7 @@ function BorrowForm({ toolId }: { toolId: Id<"tools"> }) {
             type="date"
             value={end}
             min={start}
-            onChange={(e) => setEnd(e.target.value)}
+            onChange={(e) => setEnd(e.target.value < start ? start : e.target.value)}
             className="field w-auto"
             required
           />
@@ -212,7 +216,11 @@ function BorrowForm({ toolId }: { toolId: Id<"tools"> }) {
           Cancel
         </button>
       </div>
-      {error && <p className="mt-2 text-sm font-medium text-bad">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-sm font-medium text-bad">
+          {error}
+        </p>
+      )}
     </form>
   );
 }
@@ -256,8 +264,12 @@ export function MyListings() {
         </div>
       )}
 
-      {!tools ? (
+      {tools === undefined ? (
         <SkeletonList rows={2} />
+      ) : tools === null ? (
+        <Empty icon={<Wrench className="size-5" />} title="Could not load your listings">
+          Your account is still being set up, or the session expired. Reload the page and try again.
+        </Empty>
       ) : tools.length === 0 && editing !== "new" ? (
         <Empty icon={<Wrench className="size-5" />} title="You have not listed anything yet">
           Think of the thing in your cupboard you used once. That is the one someone on your street needs
@@ -283,12 +295,14 @@ export function MyListings() {
                 />
               </li>
             ) : (
-              <li key={t.id} className="panel flex flex-col gap-3 p-5">
+              <li key={t.id} className="row flex flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate font-semibold">{t.name}</h3>
+                    <h3 className="truncate font-semibold" title={t.name}>
+                    {t.name}
+                  </h3>
                     <p className="mt-1 text-sm text-muted">
-                      {CATEGORY_LABEL[t.category] ?? t.category} · {t.condition}
+                      {categoryLabel(t.category)} · {t.condition}
                     </p>
                   </div>
                   {t.available ? <Badge tone="ok">Available</Badge> : <Badge tone="warn">On loan</Badge>}
@@ -298,14 +312,12 @@ export function MyListings() {
                   <button onClick={() => setEditing(t.id)} className="btn btn-ghost btn-sm">
                     Edit
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Delete "${t.name}"? Open requests are declined.`)) void remove({ toolId: t.id });
-                    }}
-                    className="btn btn-quiet btn-sm text-bad"
-                  >
-                    Delete
-                  </button>
+                  <ConfirmButton
+                    label="Delete"
+                    confirmLabel="Delete it"
+                    title="Open requests are declined."
+                    onConfirm={() => remove({ toolId: t.id })}
+                  />
                 </div>
               </li>
             ),
@@ -373,7 +385,7 @@ function ToolForm({
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {CATEGORY_LABEL[c]}
+              {categoryLabel(c)}
             </option>
           ))}
         </select>
@@ -412,7 +424,11 @@ function ToolForm({
         />
       </div>
 
-      {error && <p className="text-sm font-medium text-bad sm:col-span-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm font-medium text-bad sm:col-span-2">
+          {error}
+        </p>
+      )}
 
       <div className="flex gap-2 sm:col-span-2">
         <button type="submit" disabled={busy} className="btn btn-primary btn-sm">

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Header } from "@/components/Shell";
 import { SignIn } from "@clerk/nextjs";
 
 /* Sign in lives on LendLoop's own domain.
@@ -13,12 +14,22 @@ import { SignIn } from "@clerk/nextjs";
  * card's height, so the page does not jump when it lands. */
 export default function Page() {
   return (
-    <main className="grid min-h-dvh place-items-center px-5 py-16">
-      <Suspense
-        fallback={<span className="skeleton h-[420px] w-[400px] max-w-full rounded-card" aria-label="Loading" />}
-      >
-        <SignIn />
-      </Suspense>
-    </main>
+    <div className="flex min-h-dvh flex-col">
+      {/* The header stays: without it this page is a bare card with no logo
+          and no way back to the site except the browser button. */}
+      <Header signedIn={false} />
+      <main className="grid flex-1 place-items-center px-5 py-16">
+        <Suspense
+          fallback={
+            <span
+              className="skeleton h-[488px] w-[400px] max-w-full rounded-card"
+              aria-label="Loading"
+            />
+          }
+        >
+          <SignIn />
+        </Suspense>
+      </main>
+    </div>
   );
 }

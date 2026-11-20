@@ -5,7 +5,8 @@ import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { ArrowRight, CalendarCheck, PackageOpen, ShieldCheck, Zap } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { Header, Badge, CATEGORY_LABEL } from "@/components/Shell";
+import { Header, Badge } from "@/components/Shell";
+import { categoryLabel } from "@/lib/labels";
 import { SignInCta } from "@/components/SignInCta";
 
 /* The public page.
@@ -150,11 +151,13 @@ async function LiveBoard() {
     );
 
   return (
-    <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {tools.map((t) => (
         <li key={t.id} className="row flex items-center justify-between gap-3 px-4 py-3.5">
-          <span className="truncate font-semibold">{t.name}</span>
-          <Badge>{CATEGORY_LABEL[t.category] ?? t.category}</Badge>
+          <span className="truncate font-semibold" title={t.name}>
+            {t.name}
+          </span>
+          <Badge>{categoryLabel(t.category)}</Badge>
         </li>
       ))}
     </ul>
@@ -165,9 +168,9 @@ async function LiveBoard() {
    genuinely unknown until the query returns. */
 function BoardSkeleton() {
   return (
-    <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
       {Array.from({ length: 6 }).map((_, i) => (
-        <li key={i} className="panel flex items-center justify-between gap-3 px-4 py-3.5" aria-hidden>
+        <li key={i} className="row flex items-center justify-between gap-3 px-4 py-3.5" aria-hidden>
           <span className="skeleton h-4 w-28" />
           <span className="skeleton h-5 w-20 rounded-md" />
         </li>

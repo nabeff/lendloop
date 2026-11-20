@@ -41,7 +41,7 @@ Copy `.env.example` to `.env.local` and fill in the two Clerk keys. `NEXT_PUBLIC
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000 (or whichever port Next reports).
 
 ### 4. n8n
 

@@ -15,12 +15,14 @@
   --color-raised: #171a1f;
   --color-hover: #1d2127;
   --color-line: #23272e;
-  --color-line-soft: #1a1d23;
 
   /* Text, three levels of presence. */
   --color-ink: #f2f4f7;
   --color-ink-soft: #a7b0bd;
-  --color-muted: #6b7482;
+  /* Measured against base, panel and raised: the old #6b7482 came out at
+     3.7 to 4.2 to 1 on 12 to 14px text, under the 4.5 AA needs. This clears
+     it on every surface. */
+  --color-muted: #949cab;
 
   /* Primary: indigo. It leads every page and carries the main action.
      Chosen over a bright lime because a saturated yellow-green at button
@@ -46,8 +48,6 @@
   --color-bad: #fb7185;
   --color-bad-soft: #2a1016;
   --color-bad-line: #4d1f29;
-  --color-info: #7dd3fc;
-  --color-info-soft: #0c2230;
 
   --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
 
@@ -176,13 +176,17 @@ body {
   }
   .field:focus,
   .select:focus {
-    border-color: var(--color-accent-line);
+    border-color: var(--color-accent);
     background: var(--color-hover);
   }
+  /* A keyboard user must be able to see where they are. The border alone was
+     1.46:1 against the field, far under the 3:1 a focus indicator needs, so
+     the ring stays and the soft glow sits behind it. */
   .field:focus-visible,
   .select:focus-visible,
   .field-area:focus-visible {
-    outline: none;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
   }
 
   /* The native date picker indicator is black-on-black by default. */
@@ -214,7 +218,7 @@ body {
     border-color: #2f343d;
   }
   .field-area:focus {
-    border-color: var(--color-accent-line);
+    border-color: var(--color-accent);
     background: var(--color-hover);
   }
 
@@ -273,6 +277,10 @@ body {
     transition:
       background-color 140ms ease,
       border-color 140ms ease;
+  }
+  .check:has(input:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
   .check input:checked {
     background-color: var(--color-accent);

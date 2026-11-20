@@ -5,7 +5,8 @@ import { useMutation, useQuery } from "convex/react";
 import { AlertTriangle, Check, Inbox, Send, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Badge, Empty, SectionHead, SkeletonRows, StatusBadge, dateRange, relative } from "./Shell";
+import { Badge, Empty, SectionHead, SkeletonRows, StatusBadge } from "./Shell";
+import { dateRange, relative } from "@/lib/labels";
 import { errorText } from "./Tools";
 
 type Loan = NonNullable<ReturnType<typeof useQuery<typeof api.loans.incoming>>>[number];
@@ -74,7 +75,16 @@ function LoanList({
   emptyTitle: string;
   emptyBody: string;
 }) {
-  if (!loans) return <SkeletonRows />;
+  // undefined is "still loading", null is "the server declined to answer".
+  // Treating both as loading meant a failed user sync left the board
+  // shimmering forever with nothing to click and nothing to read.
+  if (loans === undefined) return <SkeletonRows />;
+  if (loans === null)
+    return (
+      <Empty icon={emptyIcon} title="Could not load this list">
+        Your account is still being set up, or the session expired. Reload the page and try again.
+      </Empty>
+    );
 
   if (loans.length === 0)
     return (

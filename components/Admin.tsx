@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Star } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { Badge, SectionHead } from "./Shell";
+import { Badge, SectionHead, initial } from "./Shell";
+import { errorText } from "./Tools";
 import { AllLoans } from "./Loans";
 
 export function Admin() {
@@ -35,7 +37,7 @@ export function Admin() {
             {users.map((u) => (
               <li key={u.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-raised text-sm font-bold text-ink-soft">
-                  {u.name.slice(0, 1).toUpperCase()}
+                  {initial(u.name)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -50,12 +52,10 @@ export function Admin() {
                   </div>
                   <p className="truncate text-sm text-muted">{u.email}</p>
                 </div>
-                <button
-                  onClick={() => void setTrusted({ userId: u.id, trusted: !u.trustedLender })}
-                  className="btn btn-ghost btn-sm"
-                >
-                  {u.trustedLender ? "Remove trust" : "Mark as trusted"}
-                </button>
+                <TrustButton
+                  trusted={u.trustedLender}
+                  onToggle={() => setTrusted({ userId: u.id, trusted: !u.trustedLender })}
+                />
               </li>
             ))}
           </ul>
@@ -66,6 +66,41 @@ export function Admin() {
         <SectionHead title="All loans" hint="Every request across the board, oldest activity last." />
         <AllLoans />
       </section>
+    </div>
+  );
+}
+
+/* The toggle awaits its mutation and reports a failure. It used to be
+   fire and forget with no disabled state, so on a slow link an admin clicked,
+   nothing moved, and they clicked again; a failure was silent. */
+function TrustButton({ trusted, onToggle }: { trusted: boolean; onToggle: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            await onToggle();
+          } catch (e) {
+            setError(errorText(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+        disabled={busy}
+        className="btn btn-ghost btn-sm"
+      >
+        {busy ? "Saving" : trusted ? "Remove trust" : "Mark as trusted"}
+      </button>
+      {error && (
+        <p role="alert" className="text-xs font-medium text-bad">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

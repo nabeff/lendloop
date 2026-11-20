@@ -102,6 +102,14 @@ export const remove = mutation({
     const tool = await requireTool(ctx, toolId);
     assertOwnerOrAdmin(me, tool.ownerId);
     const loans = await ctx.db.query("loans").withIndex("by_tool", (q) => q.eq("toolId", toolId)).collect();
+    // A tool that is OUT on an approved loan is not the owner's to delete:
+    // someone is holding it, and removing the row would leave that loan alive
+    // with nothing attached. The reminder run would then chase the borrower
+    // every morning about "a tool" with no name. Mark it returned first.
+    if (loans.some((l) => l.status === "approved")) {
+      throw new ConvexError("This tool is out on loan. Mark it returned first, then remove the listing.");
+    }
+
     // Through setStatus, not a bare patch, so the borrower is actually told the
     // tool is gone instead of watching their request turn to declined in silence.
     for (const l of loans) {
