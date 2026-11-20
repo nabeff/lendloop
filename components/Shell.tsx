@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
-import { SignInHeaderButton } from "./SignInCta";
+import { AvatarSlot, SignInHeaderButton } from "./SignInCta";
 import { Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -36,9 +35,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
               <Link href="/app" className="btn btn-ghost btn-sm">
                 Open board
               </Link>
-              <span className="grid size-7 place-items-center">
-                <UserButton />
-              </span>
+              <AvatarSlot />
             </>
           ) : (
             <SignInHeaderButton />
