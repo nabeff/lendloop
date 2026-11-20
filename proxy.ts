@@ -6,7 +6,12 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isProtected = createRouteMatcher(["/app(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtected(req)) await auth.protect();
+  if (!isProtected(req)) return;
+  // protect() answers 404 for a signed-out visitor, which reads as a broken
+  // link rather than "you need an account". Redirect to our own sign-in page
+  // instead, carrying the original URL so they land where they were going.
+  const { userId, redirectToSignIn } = await auth();
+  if (!userId) return redirectToSignIn({ returnBackUrl: req.url });
 });
 
 export const config = {
