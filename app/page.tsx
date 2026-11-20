@@ -6,38 +6,29 @@ import { fetchQuery } from "convex/nextjs";
 import { ArrowRight, CalendarCheck, PackageOpen, ShieldCheck, Zap } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Header, Badge, CATEGORY_LABEL } from "@/components/Shell";
-import { Wrench } from "lucide-react";
 import { SignInCta } from "@/components/SignInCta";
 
-/* The public page is rendered on the SERVER.
+/* The public page.
  *
- * It was a client component that called useQuery and read the Clerk session in
- * the browser. Both resolve after the first paint, so the first frame had no
- * button and no count, and the hero assembled itself in front of the visitor.
- * Reserving the height hid the jump, but the page was still arriving in parts.
+ * It was a client component: the session and the tool list both resolved
+ * after the first paint, so the hero visibly assembled itself, no button,
+ * then a button, then a count. Reserving the height only hid that.
  *
- * Here the tool list is fetched server side and the session is read from the
- * request, so the HTML that leaves the server is already the finished page.
- * Nothing fades in, because nothing was missing.
+ * Now the structure matches what is actually known when. The shell, the
+ * headline and the three feature cards are fixed text, so they render
+ * immediately and never move. Only the two things that depend on the request,
+ * the call to action and the live board, sit inside their own Suspense
+ * boundaries. Each one streams in already complete.
  *
- * This component reads the request, so under Next 16 cacheComponents it is
- * uncacheable by definition and must sit inside a Suspense boundary. The
- * boundary lives in page.tsx below, not here, so the shell around it can
- * still be prerendered. */
-async function HeroAndBoard() {
-  // Declare this as request-time work BEFORE touching the network. Under
-  // cacheComponents Next otherwise tries to prerender this subtree, and the
-  // Convex client generating a request id trips its "unstable value" guard.
-  await connection();
+ * Nothing renders a placeholder for something the server could have answered
+ * outright, which is why there is no skeleton under the header button. */
 
-  // In parallel: neither depends on the other, so awaiting them in sequence
-  // would add a round trip for nothing.
-  const [tools, { userId }] = await Promise.all([fetchQuery(api.tools.listPublic), auth()]);
-  const count = tools.length;
-
+export default function Page() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header signedIn={Boolean(userId)} />
+      <Suspense fallback={<Header signedIn={false} />}>
+        <LiveHeader />
+      </Suspense>
 
       <section className="relative overflow-hidden border-b border-line">
         <div className="bloom pointer-events-none absolute inset-0" aria-hidden />
@@ -55,21 +46,12 @@ async function HeroAndBoard() {
             year, borrow the ladder you need once.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            {userId ? (
-              <Link href="/app" className="btn btn-primary">
-                Open the board
-                <ArrowRight className="size-4" strokeWidth={2.5} />
-              </Link>
-            ) : (
-              <SignInCta />
-            )}
-            {count > 0 && (
-              <span className="text-sm text-muted">
-                <span className="font-semibold text-ink tabular">{count}</span>{" "}
-                {count === 1 ? "tool is" : "tools are"} free on the board right now
-              </span>
-            )}
+          {/* The row holds its height so the cards below never shift, and the
+              button is the only thing that waits on the session. */}
+          <div className="mt-8 flex min-h-9 flex-wrap items-center gap-3">
+            <Suspense fallback={null}>
+              <HeroCta />
+            </Suspense>
           </div>
 
           <ul className="mt-14 grid gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-3">
@@ -94,29 +76,10 @@ async function HeroAndBoard() {
             <h2 className="text-xl font-bold tracking-tight">Available right now</h2>
             <p className="mt-1 text-sm text-muted">Live from the board. No account needed to look.</p>
           </div>
-          <span className="text-sm text-muted tabular">{count} listed</span>
         </div>
-
-        {count === 0 ? (
-          <div className="panel flex flex-col items-center gap-2 px-6 py-16 text-center">
-            <div className="mb-1 grid size-11 place-items-center rounded-xl bg-raised text-muted">
-              <PackageOpen className="size-5" />
-            </div>
-            <p className="font-semibold">Nothing listed yet</p>
-            <p className="max-w-sm text-sm text-muted">
-              Sign in and put the first tool on the board. One listing is enough to start a loop.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {tools.map((t) => (
-              <li key={t.id} className="row flex items-center justify-between gap-3 px-4 py-3.5">
-                <span className="truncate font-semibold">{t.name}</span>
-                <Badge>{CATEGORY_LABEL[t.category] ?? t.category}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense fallback={<BoardSkeleton />}>
+          <LiveBoard />
+        </Suspense>
       </section>
 
       <footer className="border-t border-line">
@@ -129,55 +92,80 @@ async function HeroAndBoard() {
   );
 }
 
-/* The page shell prerenders. Everything that reads the request (the session
-   and the live board) streams into this boundary, so the visitor gets real
-   HTML immediately and the dynamic part arrives already complete rather than
-   assembling itself in the browser. */
-export default function Page() {
+/* connection() marks each of these as request-time work before any network
+   call. Without it, cacheComponents tries to prerender the subtree and the
+   Convex client generating a request id trips its stability guard. */
+
+async function LiveHeader() {
+  await connection();
+  const { userId } = await auth();
+  return <Header signedIn={Boolean(userId)} />;
+}
+
+async function HeroCta() {
+  await connection();
+  const [{ userId }, tools] = await Promise.all([auth(), fetchQuery(api.tools.listPublic)]);
+  const count = tools.length;
   return (
-    <Suspense fallback={<HomeSkeleton />}>
-      <HeroAndBoard />
-    </Suspense>
+    <>
+      {userId ? (
+        <Link href="/app" className="btn btn-primary">
+          Open the board
+          <ArrowRight className="size-4" strokeWidth={2.5} />
+        </Link>
+      ) : (
+        <SignInCta />
+      )}
+      {count > 0 && (
+        <span className="text-sm text-muted">
+          <span className="font-semibold text-ink tabular">{count}</span>{" "}
+          {count === 1 ? "tool is" : "tools are"} free on the board right now
+        </span>
+      )}
+    </>
   );
 }
 
-/* The fallback is the same layout with the text in place and only the live
-   numbers missing, so the frame that streams in replaces it without moving
-   anything. */
-function HomeSkeleton() {
+async function LiveBoard() {
+  await connection();
+  const tools = await fetchQuery(api.tools.listPublic);
+
+  if (tools.length === 0)
+    return (
+      <div className="panel flex flex-col items-center gap-2 px-6 py-16 text-center">
+        <div className="mb-1 grid size-11 place-items-center rounded-xl bg-raised text-muted">
+          <PackageOpen className="size-5" />
+        </div>
+        <p className="font-semibold">Nothing listed yet</p>
+        <p className="max-w-sm text-sm text-muted">
+          Sign in and put the first tool on the board. One listing is enough to start a loop.
+        </p>
+      </div>
+    );
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 border-b border-line bg-base/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-5 md:px-8">
-          <span className="flex items-center gap-2.5 font-bold tracking-tight">
-            <span className="grid size-7 place-items-center rounded-lg bg-accent text-accent-ink">
-              <Wrench className="size-[15px]" strokeWidth={2.5} />
-            </span>
-            LendLoop
-          </span>
-          <span className="skeleton h-8 w-20 rounded-control" />
-        </div>
-      </header>
-      <section className="relative overflow-hidden border-b border-line">
-        <div className="bloom pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto w-full max-w-6xl px-5 pb-16 pt-20 md:px-8 md:pb-20 md:pt-28">
-          <p className="eyebrow mb-5">
-            <span className="size-1.5 rounded-full bg-spark" aria-hidden />A tool board for your street
-          </p>
-          <h1 className="display max-w-3xl">
-            Borrow what you need.
-            <br />
-            Lend what you don&apos;t.
-          </h1>
-          <p className="lede mt-5 max-w-lg">
-            Your neighbours already own most of what you are about to buy. List the drill you use twice a
-            year, borrow the ladder you need once.
-          </p>
-          <div className="mt-8 flex items-center gap-3">
-            <span className="skeleton h-9 w-36 rounded-control" />
-          </div>
-        </div>
-      </section>
-    </div>
+    <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      {tools.map((t) => (
+        <li key={t.id} className="row flex items-center justify-between gap-3 px-4 py-3.5">
+          <span className="truncate font-semibold">{t.name}</span>
+          <Badge>{CATEGORY_LABEL[t.category] ?? t.category}</Badge>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* The board is the one place a skeleton earns its keep: the row count is
+   genuinely unknown until the query returns. */
+function BoardSkeleton() {
+  return (
+    <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <li key={i} className="panel flex items-center justify-between gap-3 px-4 py-3.5" aria-hidden>
+          <span className="skeleton h-4 w-28" />
+          <span className="skeleton h-5 w-20 rounded-md" />
+        </li>
+      ))}
+    </ul>
   );
 }
