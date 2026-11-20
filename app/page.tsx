@@ -26,6 +26,8 @@ import { SignInCta } from "@/components/SignInCta";
 export default function Page() {
   return (
     <div className="flex min-h-dvh flex-col">
+      {/* The signed-out header is the safe default: it is what most visitors
+          get, and the signed-in version replaces it in the same paint. */}
       <Suspense fallback={<Header signedIn={false} />}>
         <LiveHeader />
       </Suspense>
@@ -46,10 +48,14 @@ export default function Page() {
             year, borrow the ladder you need once.
           </p>
 
-          {/* The row holds its height so the cards below never shift, and the
-              button is the only thing that waits on the session. */}
+          {/* The button is rendered immediately, never streamed. A fallback of
+              null meant the hero had no button for a beat and then one appeared
+              out of nowhere, which is worse than the flicker it replaced.
+              The signed-out call to action is identical for every visitor, so
+              it ships in the first byte and the signed-in variant swaps in
+              behind it without moving anything. */}
           <div className="mt-8 flex min-h-9 flex-wrap items-center gap-3">
-            <Suspense fallback={null}>
+            <Suspense fallback={<SignInCta />}>
               <HeroCta />
             </Suspense>
           </div>
