@@ -195,9 +195,14 @@ body {
     cursor: pointer;
   }
 
+  /* The box grows with its content instead of being a drag handle: a one
+     line description had a 76px hole under it, and a user could drag it to
+     any size they liked, which is not a decision worth giving them.
+     field-sizing is recent, so the rows attribute still sets the floor in a
+     browser that does not have it, and resize stays available there. */
   .field-area {
     width: 100%;
-    min-height: 76px;
+    resize: vertical;
     border: 1px solid var(--color-line);
     border-radius: var(--radius-control);
     background: var(--color-raised);
@@ -206,10 +211,17 @@ body {
     line-height: 1.55;
     color: var(--color-ink);
     outline: none;
-    resize: vertical;
     transition:
       border-color 140ms ease,
       background-color 140ms ease;
+  }
+  @supports (field-sizing: content) {
+    .field-area {
+      field-sizing: content;
+      min-height: 2lh;
+      max-height: 10lh;
+      resize: none;
+    }
   }
   .field-area::placeholder {
     color: var(--color-muted);
